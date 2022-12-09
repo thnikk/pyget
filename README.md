@@ -6,14 +6,14 @@ Pyget uses a json file for easy and flexible configuration. Running the script f
 
 ```
 {
-    "client": "transmission",
+    "client": torrent client (deluge or transmission),
     "feeds": [
         {
-            "url": feed url
-            "directory": path to create show/season folder in
-            "days": Max age of items in feed to pull from (0 to disable)
+            "url": feed url,
+            "directory": path to create show/season folder in,
+            "days": Max age of items in feed to pull from (0 to disable),
             "shows": {
-                "Show name": Season (creates a subdirectory within the show folder)
+                "Show name": Season (creates a subdirectory within the show folder),
             }
         },
         {
