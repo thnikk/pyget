@@ -1,6 +1,27 @@
 # pyget
 A simple script for adding torrents from rss feeds. Since there's an item limit to RSS feeds, the script creates a feed for each show. It's slower, but it mitigates the limitation by giving more relevant results. This can help if you're trying to start downloading something a few weeks into a season
 
+## Configuration
+Pyget uses a json file for easy and flexible configuration. Running the script for the first time will create ~/.config/pyget.json.
+
+```
+{
+    "client": "transmission",
+    "feeds": [
+        {
+            "url": feed url
+            "directory": path to create show/season folder in
+            "days": Max age of items in feed to pull from (0 to disable)
+            "shows": {
+                "Show name": Season (creates a subdirectory within the show folder)
+            }
+        },
+        {
+            Same as above for another feed url
+        }
+    ]
+}
+
 ## Dependencies
 To install dependencies, run:
 `pip install -r requirements.txt`
