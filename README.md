@@ -1,5 +1,5 @@
 # pyget
-A simple script for adding torrents from rss feeds.
+A simple script for adding torrents from rss feeds. Since there's an item limit to RSS feeds, the script creates a feed for each show. It's slower, but it mitigates the limitation by giving more relevant results. This can help if you're trying to start downloading something a few weeks into a season
 
 ## Dependencies
 To install dependencies, run:
@@ -26,7 +26,7 @@ ExecStart=/path/to/pyget.py
 WantedBy=default.target
 ```
 
-You also need to create a timer file `~/.config/systemd/user/pyget.timer` with the contets:
+Edit the ExecStart line to point to pyget.py. You also need to create a timer file `~/.config/systemd/user/pyget.timer` with the contets:
 
 ```
 [Unit]
