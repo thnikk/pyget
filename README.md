@@ -1,6 +1,10 @@
 # pyget
 A simple script for adding torrents from rss feeds.
 
+## Dependencies
+To install dependencies, run:
+`pip install -r requirements.txt`
+
 ## Daemonizing
 
 ### Using a cronjob

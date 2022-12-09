@@ -46,20 +46,21 @@ else:
     config = {
         "client": "transmission",
         "feeds": [
-                {
-                "url": "https://nyaa.si/?page=rss&u=subsplease&q=720p+-batch",
-                "directory": "/mnt/media2/Videos/Anime",
-                "days": 30,
-                "shows": {
-                    "Made in Abyss": "Season 02",
-                    "Yofukashi no Uta": "Season 01"
+            {
+            "url": "https://nyaa.si/?page=rss&u=subsplease&q=720p+-batch",
+            "directory": "/mnt/media2/Videos/Anime",
+            "days": 30,
+            "shows": {
+                "Made in Abyss": "Season 02",
+                "Yofukashi no Uta": "Season 01"
                 },
-                {
-                "url": "https://nyaa.si/?page=rss&u=Erai-raws&q=720p+-batch",
-                "directory": "/mnt/media2/Videos/Anime",
-                "days": 30,
-                "shows": {
-                    "Isekai Ojisan": "Season 01"
+            },
+            {
+            "url": "https://nyaa.si/?page=rss&u=Erai-raws&q=720p+-batch",
+            "directory": "/mnt/media2/Videos/Anime",
+            "days": 30,
+            "shows": {
+                "Isekai Ojisan": "Season 01"
                 },
             }
         ]
