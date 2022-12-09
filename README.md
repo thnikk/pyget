@@ -22,6 +22,8 @@ Pyget uses a json file for easy and flexible configuration. Running the script f
     ]
 }
 
+```
+
 ## Dependencies
 To install dependencies, run:
 `pip install -r requirements.txt`
