@@ -1,0 +1,8 @@
+[Unit]
+Description=Add torrents from RSS
+
+[Service]
+ExecStart=%h/.local/bin/pyget.py
+
+[Install]
+WantedBy=default.target

@@ -1,5 +1,5 @@
 # pyget
-A simple script for adding torrents from rss feeds. Since there's an item limit to RSS feeds, the script creates a feed for each show. It's slower, but it mitigates the limitation by giving more relevant results. This can help if you're trying to start downloading something a few weeks into a season
+A simple script for adding torrents from rss feeds. Since there's an item limit to RSS feeds, the script creates a feed for each show. It's slower, but it mitigates the limitation by giving more relevant results. This can help if you're trying to start downloading something a few weeks into a season.
 
 ## Configuration
 Pyget uses a json file for easy and flexible configuration. Running the script for the first time will create ~/.config/pyget.json.
@@ -30,37 +30,19 @@ To install dependencies, run:
 
 ## Daemonizing
 
+Edit the default config and run the script manually before you daemonize it. Both methods below assume that pyget.py is in ~/.local/bin.  
+
 ### Using a cronjob
-This is easier but could make debugging harder. All you need to do is run `crontab -e` and add the line:
+This is easier way but could make debugging harder. All you need to do is run `crontab -e` and add the line:
 
-`*/10 * * * * /path/to/pyget.py`
+`*/10 * * * * $HOME/.local/bin/pyget.py`
 
-Replace /path/to/pyget.py with the path of your executable and */10 will run the script every 10 minutes.
+*/10 will run the script every 10 minutes.
 
 ### Using systemd and a timer
-Create `~/.config/systemd/user/pyget.service` with the contents:
 
-```
-[Unit]
-Description=Add torrents from RSS
-[Service]
-ExecStart=/path/to/pyget.py
-[Install]
-WantedBy=default.target
-```
+The included service and timer files can be used to create a timed systemd service:
 
-Edit the ExecStart line to point to pyget.py. You also need to create a timer file `~/.config/systemd/user/pyget.timer` with the contets:
-
-```
-[Unit]
-Description=Run pyget.py every 10 minutes
-
-[Timer]
-OnCalendar=*:0/10
-Persistent=true
-
-[Install]
-WantedBy=timers.target
-```
-
-Now you need to reload systemd with `systemctl --user daemon-reload` and then you can enable the timer with `systemctl --user enable --now pyget.timer` 
+1) Copy them with `cp pyget.service ~/.config/systemd/user/` and `cp pyget.timer ~/.config/systemd/user/`
+2) Reload systemd with `systemctl --user daemon-reload`
+3) Enable the timer with `systemctl --user enable --now pyget.timer` 
