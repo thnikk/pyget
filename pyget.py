@@ -18,6 +18,7 @@ import argparse # Parse arguments for clearing cache and dry run
 parser = argparse.ArgumentParser(description='pyget.py: A simple script for adding torrents from rss feeds.')
 parser.add_argument('-c', '--clear', action='store_true', dest='clear', help='Clear cache')
 parser.add_argument('-d', '--dry', action='store_true', dest='dry', help='Dry run')
+parser.add_argument('-v', '--verbose', action='store_true', dest='verbose', help='Verbose output')
 args = parser.parse_args()
 
 # Set up cache file
@@ -95,21 +96,27 @@ else:
 
 # Iterate through feeds
 for feed in config['feeds']:
-    # Set up the base url
+    # Get the base url for the feed
     base_url = feed['url']
-    # Append a + if the url doesn't already end with one or =
-    if not base_url.endswith('+') and not base_url.endswith('='):
-        base_url = base_url + "+"
     # Iterate through shows
     for show,season in feed['shows'].items():
-        # Append the url encoded show name to the url
-        show_url = base_url + urllib.parse.quote(show)
-        # Print the url for the show
-        # print("URL:", show_url)
+        # Get the show URL
+        parts = urllib.parse.urlparse(base_url)                             # Split the URL into parts
+        query_dict = dict(urllib.parse.parse_qsl(parts.query))              # Get the querystring and convert to dictionary
+        try:
+            query_dict['q'] += " " + show.lower()                           # Append the show name to the search query
+        except:
+            query_dict['q'] = show.lower()                                  # or create a new search query if one doesn't exist
+        parts = parts._replace(query=urllib.parse.urlencode(query_dict))    # Replace the querystring with the new one
+        show_url = urllib.parse.urlunparse(parts)                           # Re-assemble the URL
         # Get the XML file
         xml_file = requests.get(show_url)
         # Convert XML to ElementTree object
-        root = ElementTree.fromstring(xml_file.content)
+        try:
+            root = ElementTree.fromstring(xml_file.content)
+        except:
+            print("Could not parse XML, skipping feed.")
+            continue
         count = 0
         # Parse XML
         for type_tag in root.findall('./channel/item'):
@@ -152,7 +159,7 @@ for feed in config['feeds']:
                 except:
                     # This shouldn't happen, but the code will break if it does.
                     print("Torrent already added")
-        if count > 0:
+        if count > 0 or args.verbose:
             print(show + ":", count, "episodes added.")
 
 
