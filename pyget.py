@@ -1,168 +1,125 @@
-#!/usr/bin/python3
-''' pyget.py: A simple script for adding torrents from rss feeds.'''
-__author__      = "Jack Reitano"
-__license__     = "GPL"
-__version__     = "0.1"
-__maintainer__  = "Jack Reitano"
-
-# Import libraries
-import os # Expand user and check files 
-import json # Dump and load json config file
-import urllib.parse # Encode string for URL
-import requests # Get XML file
-from xml.etree import ElementTree # Parse XML
-from datetime import datetime,timedelta # Compare published date to current date
-import argparse # Parse arguments for clearing cache and dry run
+#!/usr/bin/python3 -u
+"""
+Newer, more modular python script for fetching torrents from rss feeds.
+Author: thnikk
+"""
+import urllib.parse as up
+from xml.etree import ElementTree as et
+from datetime import datetime, timedelta
+import concurrent.futures
+import subprocess
+import argparse
+import json
+import sys
+import os
+import requests
 
 # Initialize parser
-parser = argparse.ArgumentParser(description='pyget.py: A simple script for adding torrents from rss feeds.')
-parser.add_argument('-c', '--clear', action='store_true', dest='clear', help='Clear cache')
-parser.add_argument('-d', '--dry', action='store_true', dest='dry', help='Dry run')
-parser.add_argument('-v', '--verbose', action='store_true', dest='verbose', help='Verbose output')
+parser = argparse.ArgumentParser(
+    description='pyget.py: A script for adding torrents from rss feeds.')
+parser.add_argument('-i', action='store_true', help='Ignore blacklist')
+parser.add_argument('-d', action='store_true', help='Dry run')
 args = parser.parse_args()
 
-# Set up cache file
-cache_file = os.path.expanduser('~/.cache/pyget.cache')
-if not os.path.exists(cache_file):
-    open(cache_file, 'a').close()
+pool = concurrent.futures.ThreadPoolExecutor()
 
-# If -c flag is given, clear the cache file
-if args.clear:
-    open(cache_file, 'w').close()
-# If -d flag is given, don't connect to the torrent client and don't download anything
-if args.dry:
-    print("DRY RUN - Nothing will be downloaded")
-
-# Set up config file
-config_file = os.path.expanduser("~/.config/pyget.json")
-# Check if config exists
-if os.path.exists(config_file):
-    # If it does, load it as config
-    print("Config found in", config_file)
-    with open(config_file, 'r') as f:
-        config = json.load(f)
-else:
-    # Otherwise, create it and quit
-    print("Config not found, creating in", config_file)
-    config = {
-        "client": "transmission",
-        "feeds": [
-            {
-            "url": "https://nyaa.si/?page=rss&u=subsplease&q=720p+-batch",
-            "directory": "/mnt/media2/Videos/Anime",
-            "days": 30,
+default_config = {
+    "client": {
+        "host": "10.0.0.29",
+        "port": "9091"
+    },
+    "feeds": [
+        {
+            "url": "https://nyaa.si/?page=rss",
+            "path": "~/Videos/Anime",
+            "age": 30,
+            "common": "subsplease 720p -batch",
             "shows": {
-                "Made in Abyss": "Season 02",
-                "Yofukashi no Uta": "Season 01"
-                },
-            },
-            {
-            "url": "https://nyaa.si/?page=rss&u=Erai-raws&q=720p+-batch",
-            "directory": "/mnt/media2/Videos/Anime",
-            "days": 30,
-            "shows": {
-                "Isekai Ojisan": "Season 01"
-                },
+                "Sousou no Frieren": "Season 01",
             }
-        ]
-    }
-    with open(config_file, "w") as f:
-        json.dump(config, f, indent=4)
-    print("Default config created. Please edit before running again.")
-    quit()
+        }
+    ]
+}
 
-# Initialize torrent client
-if args.dry:
-    print("Skipping torrent client connection")
-elif config['client'] == "transmission":
-    from transmission_rpc import Client # Add torrent to transmission
-    try:
-        c = Client()
-    except:
-        print("Transmission daemon is not running")
-        quit()
-elif config['client'] == "deluge":
-    from deluge_client import DelugeRPCClient # Add torrent to deluge
-    import base64 # Encode torrent file for deluge
-    try:
-        from deluge_client import LocalDelugeRPCClient
-        c = LocalDelugeRPCClient()
-        c.connect()
-    except:
-        print("Deluged is not running")
-        quit()
-else: 
-    print("Invalid/missing torrent client")
+
+def load_config(path, default):
+    """ Load or create json config with default """
+    # Set up config file
+    config_path = os.path.expanduser(path)
+    # Check if config exists
+    if os.path.exists(config_path):
+        # If it does, load it as config
+        print("Config found in", config_path)
+        with open(config_path, 'r', encoding='utf-8') as config_file:
+            return json.load(config_file)
+    else:
+        print("Config not found, creating in", config_path)
+        with open(config_path, "w", encoding='utf-8') as config_file:
+            json.dump(default, config_file, indent=4)
+        print("Default config created. Please edit "
+              f"{config_path} before running again.")
+        sys.exit(0)
+
+
+def add_torrents(client, path, url, age, blacklist):
+    """ Get torrent files from rss feed """
+    xml = requests.get(url, timeout=3)
+    root = et.fromstring(xml.content)
+    for tag in root.findall('./channel/item'):
+        # Get torrent URL
+        link = tag.find('link').text
+        # Get torrent title
+        title = tag.find('title').text
+        # Get date
+        date = datetime.strptime(
+            tag.find("pubDate").text, '%a, %d %b %Y %H:%M:%S %z'
+        ).replace(tzinfo=None)
+        # If it's younger than specified age
+        if (datetime.now() - date) < timedelta(days=age):
+            if title not in blacklist or args.i:
+                print(f"Downloading {title}")
+                if args.d:
+                    # Add it to transmission
+                    subprocess.run(
+                        ["transmission-remote",
+                            f"{client}",
+                            "-w", f"{path}",
+                            "-a", f"{link}",
+                         ],
+                        check=False,
+                        capture_output=True
+                    )
+
+
+config = load_config("~/.config/pyget.json", default_config)
+
+# Generate torrent list with list comprehension
+torrent_list = [torrent.split("  ")[-1].strip() for torrent in subprocess.run(
+    ["transmission-remote",
+     f"{config['client']['host']}:{config['client']['port']}", "-l"],
+    check=True, capture_output=True).stdout.decode('utf-8').splitlines()]
 
 # Iterate through feeds
 for feed in config['feeds']:
-    # Get the base url for the feed
-    base_url = feed['url']
-    # Iterate through shows
-    for show,season in feed['shows'].items():
-        # Get the show URL
-        parts = urllib.parse.urlparse(base_url)                             # Split the URL into parts
-        query_dict = dict(urllib.parse.parse_qsl(parts.query))              # Get the querystring and convert to dictionary
-        try:
-            query_dict['q'] += " " + show.lower()                           # Append the show name to the search query
-        except:
-            query_dict['q'] = show.lower()                                  # or create a new search query if one doesn't exist
-        parts = parts._replace(query=urllib.parse.urlencode(query_dict))    # Replace the querystring with the new one
-        show_url = urllib.parse.urlunparse(parts)                           # Re-assemble the URL
-        # Get the XML file
-        xml_file = requests.get(show_url)
-        # Convert XML to ElementTree object
-        try:
-            root = ElementTree.fromstring(xml_file.content)
-        except:
-            print("Could not parse XML, skipping feed.")
-            continue
-        count = 0
-        # Parse XML
-        for type_tag in root.findall('./channel/item'):
-            # Get title from xml
-            title = type_tag.find("title").text
-            # Get url from xml
-            torrent_url = type_tag.find("link").text
-            # Get date from XML and convert to datetime object
-            date = datetime.strptime(type_tag.find("pubDate").text, '%a, %d %b %Y %H:%M:%S %z').replace(tzinfo=None)
-            # Skip if older than configured time in days or ignore if time set to 0
-            if (datetime.now() - date) > timedelta(days=int(feed['days'])) and int(feed['days']) != 0:
-                continue
-            if args.dry:
-                # Print that the file was found
-                print("Found", title)
-            else:
-                # Skip if file already in cache
-                with open(cache_file) as f:
-                    if title in f.read():
-                        continue
-                try:
-                    # Transmission is simple and nice
-                    if config['client'] == "transmission":
-                        c.add_torrent(torrent_url, download_dir = feed['directory'] + "/" + show + "/" + season)
-                    # Deluge is annoying
-                    elif config['client'] == "deluge":
-                        # Set download directory
-                        opts={"download_location": feed['directory'] + "/" + show + "/" + season}
-                        # Get the torrent file
-                        torrent_file = requests.get(torrent_url)
-                        # Encode the contents of the file
-                        filedump = base64.b64encode(torrent_file.content)
-                        c.call('core.add_torrent_file', "test", filedump, opts)
-                    # Print that the file was added
-                    # print("Added", title)
-                    # Append name to cache file
-                    with open(cache_file, 'a') as f:
-                        f.write(title + '\n')
-                    count = count+1
-                except:
-                    # This shouldn't happen, but the code will break if it does.
-                    print("Torrent already added")
-        if count > 0 or args.verbose:
-            print(show + ":", count, "episodes added.")
-
-
-
-
-
+    # Get base URL
+    URL = feed['url']
+    # Iterate through shows in feed
+    for show, season in feed['shows'].items():
+        # Split url into parts with urllib
+        parts = up.urlparse(URL)
+        # Get query dictionary
+        query_dict = dict(up.parse_qsl(parts.query))
+        # Append query to querystring
+        query_dict['q'] = f"{show.lower()} {feed['common'].lower()}"
+        # Add querystring to URL
+        parts = parts._replace(query=up.urlencode(query_dict))
+        # Get torrents for show
+        pool.submit(
+            add_torrents,
+            f"{config['client']['host']}:{config['client']['port']}",
+            f"{os.path.expanduser(feed['path'])}/{show}/{season}",
+            up.urlunparse(parts),
+            feed['age'],
+            torrent_list
+        )
+pool.shutdown(wait=True)
