@@ -6,12 +6,12 @@ Pyget uses a json file for easy and flexible configuration. Running the script f
 
 ```
 {
-    "client": torrent client (deluge or transmission),
+    "client": ...
     "feeds": [
         {
             "url": feed url,
-            "directory": path to create show/season folder in,
-            "days": Max age of items in feed to pull from (0 to disable),
+            "path": path to create show/season folder in,
+            "age": Max age of items to use from feed (in days),
             "shows": {
                 "Show name": Season (creates a subdirectory within the show folder),
             }
@@ -21,28 +21,10 @@ Pyget uses a json file for easy and flexible configuration. Running the script f
         }
     ]
 }
-
 ```
 
 ## Dependencies
-To install dependencies, run:
-`pip install -r requirements.txt`
+I tried to use as few python dependencies as possible and instead used subprocess for communicating with the torrent client. All you should need is the system package `transmission-cli`, which is included with transmission on most linux distros. 
 
-## Daemonizing
-
-Edit the default config and run the script manually before you daemonize it. Both methods below assume that pyget.py is in ~/.local/bin.  
-
-### Using a cronjob
-This is easier way but could make debugging harder. All you need to do is run `crontab -e` and add the line:
-
-`*/10 * * * * $HOME/.local/bin/pyget.py`
-
-*/10 will run the script every 10 minutes.
-
-### Using systemd and a timer
-
-The included service and timer files can be used to create a timed systemd service:
-
-1) Copy them with `cp pyget.service ~/.config/systemd/user/` and `cp pyget.timer ~/.config/systemd/user/`
-2) Reload systemd with `systemctl --user daemon-reload`
-3) Enable the timer with `systemctl --user enable --now pyget.timer` 
+## Installation
+You can install all relevant files with the makefile using `make install`. It's not enabled by default, and I recommend running the script manually to make sure your configuration is correct. Once you've verified that it's working, you can use `systemctl --user daemon-reload && systemctl --user enable --now pyget.timer` to enable the timer.
