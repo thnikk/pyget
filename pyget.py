@@ -69,14 +69,25 @@ def get_config(path):
         ) as file:
             file.write(json.dumps(
                 {"client": {"host": "localhost", "port": "9091"},
-                    "feeds": [{
+                    "feeds": [
+                        {
+                            "enabled": False,
                             "url": "https://nyaa.si/?page=rss",
                             "path": "~/Videos/Anime",
                             "age": 30,
                             "uploader": "subsplease",
                             "common": "720p -batch",
                             "shows": {"Sousou no Frieren": "Season 01"}
-                    }]}, indent=4))
+                        },
+                        {
+                            "enabled": False,
+                            "url": "https://torrentgalaxy.to/rss?user=29",
+                            "path": "~/Videos/Shows",
+                            "age": 30,
+                            "filter": "720p",
+                            "shows": {"Curb your Enthusiasm": "Season 12"}
+                        }
+                    ]}, indent=4))
         print(
             f"Default config created in {path}. "
             "Edit before running again to add shows.", file=sys.stderr)
@@ -103,13 +114,15 @@ def parse_xml(string):
 def get_feed(feed, tr):
     """ Get individual feed """
     for show, season in feed['shows'].items():
-        qs = {"q": show.lower(), "u": ""}
-        for key, value in {"u": "uploader", "q": "common"}.items():
-            try:
-                qs[key] = " ".join([feed[value].lower(), qs[key]])
-            except KeyError:
-                pass
-        xml = requests.get(feed['url'], params=qs, timeout=3).content
+        querystring = {"q": show.lower(), "u": ""}
+        if 'uploader' in feed and 'common' in feed:
+            for key, value in {"u": "uploader", "q": "common"}.items():
+                try:
+                    querystring[key] = " ".join(
+                        [feed[value].lower(), querystring[key]])
+                except KeyError:
+                    pass
+        xml = requests.get(feed['url'], params=querystring, timeout=3).content
         path = "/".join([feed['path'], show, season])
         torrents = parse_xml(xml)
         for torrent in torrents:
@@ -117,6 +130,8 @@ def get_feed(feed, tr):
                 torrent.title not in tr.torrents
                 and torrent.old(feed['age'])
             ):
+                if 'filter' in feed and feed['filter'] not in torrent.title:
+                    continue
                 print(f"Adding {torrent.title}")
                 tr.add(torrent.url, path)
 
@@ -130,7 +145,8 @@ def main():
     pool = concurrent.futures.ThreadPoolExecutor()
 
     for feed in config['feeds']:
-        pool.submit(get_feed, feed, tr)
+        if 'enabled' in feed and feed['enabled']:
+            pool.submit(get_feed, feed, tr)
 
     pool.shutdown(wait=True)
 
